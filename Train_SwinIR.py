@@ -37,7 +37,7 @@ def train(i, original_imgs_path):
     height = 256
     width = 256
     swin_model = SwinIR(in_chans=input_nc, upscale=2, img_size=(height, width),
-                        window_size=window_size, img_range=225., depths=[6,6,6,6],
+                        window_size=window_size, img_range=225., depths=[4,4,4,4],
                         embed_dim=60, num_heads=[6,6,6,6], mlp_ratio=2, upsampler='')
 
     if args.resume is not None:
@@ -85,36 +85,42 @@ def train(i, original_imgs_path):
 
             x = Variable(img.data.clone(), requires_grad=False)
 
-            ssim_loss_value = 0.
+            # ssim_loss_value = 0.
             pixel_loss_value = 0.
             for output in outputs:
                 pixel_loss_temp = mse_loss(output, x)
-                ssim_loss_temp = ssim_loss(output, x, normalize=True)
-                ssim_loss_value += (1-ssim_loss_temp)
+                # ssim_loss_temp = ssim_loss(output, x, normalize=True)
+                # ssim_loss_value += (1-ssim_loss_temp)
                 pixel_loss_value += pixel_loss_temp
-            ssim_loss_value /= len(outputs)
+            # ssim_loss_value /= len(outputs)
             pixel_loss_value /= len(outputs)
 
-            total_loss = pixel_loss_value + args.ssim_weight[i] * ssim_loss_value
+            total_loss = pixel_loss_value
+            # total_loss = pixel_loss_value + args.ssim_weight[i] * ssim_loss_value
             total_loss.backward()
             optimizer.step()
 
-            all_ssim_loss += ssim_loss_value.item()
+            # all_ssim_loss += ssim_loss_value.item()
             all_pixel_loss += pixel_loss_value.item()
 
             if (batch + 1) % args.log_interval == 0:
-                mesg = "{}\tEpoch {}:\t[{}/{}]\t pixel loss: {:.6f}\t ssim loss: {:.6f}\t total: {:.6f}".format(
+                mesg = "{}\tEpoch {}:\t[{}/{}]\t pixel loss: {:.6f}\t".format(
                     time.ctime(), e + 1, count, batches,
-                                  all_pixel_loss / args.log_interval,
-                                  all_ssim_loss / args.log_interval,
-                                  (args.ssim_weight[i] * all_ssim_loss + all_pixel_loss) / args.log_interval
+                                  all_pixel_loss / args.log_interval
                 )
+                # mesg = "{}\tEpoch {}:\t[{}/{}]\t pixel loss: {:.6f}\t ssim loss: {:.6f}\t total: {:.6f}".format(
+                #     time.ctime(), e + 1, count, batches,
+                #                   all_pixel_loss / args.log_interval,
+                #                   all_ssim_loss / args.log_interval,
+                #                   (args.ssim_weight[i] * all_ssim_loss + all_pixel_loss) / args.log_interval
+                # )
                 tbar.set_description(mesg)
                 Loss_pixel.append(all_pixel_loss / args.log_interval)
-                Loss_ssim.append(all_ssim_loss / args.log_interval)
-                Loss_all.append((args.ssim_weight[i] * all_ssim_loss + all_pixel_loss) / args.log_interval)
+                # Loss_ssim.append(all_ssim_loss / args.log_interval)
+                Loss_all.append((all_pixel_loss) / args.log_interval)
+                # Loss_all.append((args.ssim_weight[i] * all_ssim_loss + all_pixel_loss) / args.log_interval)
 
-                all_ssim_loss = 0.
+                # all_ssim_loss = 0.
                 all_pixel_loss = 0.
             if (batch+1)%(200*args.log_interval) == 0:
                 swin_model.eval()

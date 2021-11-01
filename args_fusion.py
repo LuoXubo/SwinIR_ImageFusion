@@ -2,10 +2,14 @@ class args():
 
     # training args
     epochs = 4
-    batch_size = 2
-    dataset = 'E:/实验数据/train2014/train2014/'
-    dataset_ir = 'E:/实验数据/KAIST/lwir/'
-    dataset_vi = 'E:/实验数据/KAIST/visible/'
+    batch_size = 1
+    # dataset = 'E:/实验数据/train2014/train2014/'
+    # dataset = 'n904@n904:/run/user/1000/gvfs/afp-volume:host=NASGP.local,user=zyk,volume=dataset/COCO_train2014/'
+    dataset = '/run/user/1000/gvfs/afp-volume:host=NASGP.local,user=zyk,volume=dataset/COCO_train2014/'
+
+    # dataset_ir = '~/桌面/dataset/KAIST/lwir/'
+    dataset_ir = '../dataset/KAIST/lwir/'
+    dataset_vi = '../dataset/KAIST/visible/'
     HEIGHT = 256
     WIDTH = 256
 
@@ -21,12 +25,9 @@ class args():
 
     lr = 1e-4
     lr_light = 1e-4
-    log_interval = 5
+    log_interval = 20
 
-    resume = None
-    resume_auto_en = None
-    resume_auto_de = None
-    resume_auto_fn = None
+    resume_Swin = './models/final_models/Swin.model'
     resume_fusion_model = None
 
     model_path_gray = './models/1e2/densefuse_gray.model'

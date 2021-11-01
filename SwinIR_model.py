@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from torchsummary import summary
+
 
 
 class Mlp(nn.Module):
@@ -843,11 +843,11 @@ if __name__ == '__main__':
     # width = (720 // upscale // window_size + 1) * window_size
     height = 256
     width = 256
-    x = torch.randn((1, 1, height, width))
+    x = torch.randn((1, 3, height, width))
     model = SwinIR(in_chans=x.shape[1], upscale=2, img_size=(height, width),
-                   window_size=window_size, img_range=1., depths=[6, 6, 6, 6],
+                   window_size=window_size, img_range=1., depths=[4,4,4,4],
                    embed_dim=60, num_heads=[6, 6, 6, 6], mlp_ratio=2, upsampler='')
-    print(model)
+    # print(model)
     print(height, width)
 
     x = model.encoder(x)
