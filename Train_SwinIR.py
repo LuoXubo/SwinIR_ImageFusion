@@ -10,7 +10,7 @@ import random
 import torch
 import os
 import time
-import pytorch_msssim
+# import pytorch_msssim
 
 def main():
     original_imgs_path = utils.list_images(args.dataset)
@@ -18,10 +18,9 @@ def main():
     original_imgs_path = original_imgs_path[:train_num]
     random.shuffle(original_imgs_path)
 
-    i = 2
-    train(i, original_imgs_path)
+    train(original_imgs_path)
 
-def train(i, original_imgs_path):
+def train(original_imgs_path):
     batch_size = args.batch_size
     in_c = 3
     if in_c == 1:
@@ -30,15 +29,18 @@ def train(i, original_imgs_path):
         img_model = 'RGB'
 
     input_nc = in_c
-    output_nc = in_c
-
-    upscale = 4
+    upscale = 1
     window_size = 8
     height = 256
     width = 256
-    swin_model = SwinIR(in_chans=input_nc, upscale=2, img_size=(height, width),
-                        window_size=window_size, img_range=225., depths=[4,4,4,4],
+    depths = [3,3,3,3]
+
+    swin_model = SwinIR(in_chans=input_nc, upscale=upscale, img_size=(height, width),
+                        window_size=window_size, img_range=255., depths=depths,
                         embed_dim=60, num_heads=[6,6,6,6], mlp_ratio=2, upsampler='')
+
+    if hasattr(torch.cuda, 'empty_cache'):
+        torch.cuda.empty_cache()
 
     if args.resume is not None:
         print('Resuming, initializing using weight from {}.'.format(args.resume))
@@ -46,7 +48,7 @@ def train(i, original_imgs_path):
     # print(swin_model)
     optimizer = Adam(swin_model.parameters(), args.lr)
     mse_loss = torch.nn.MSELoss()
-    ssim_loss = pytorch_msssim.msssim
+    # ssim_loss = pytorch_msssim.msssim
 
     if args.cuda:
         swin_model.cuda()
@@ -55,7 +57,7 @@ def train(i, original_imgs_path):
     print('Start training.....')
 
     # creating save path
-    temp_path_model = os.path.join(args.save_model_dir, args.ssim_path[i])
+    temp_path_model = os.path.join(args.save_model_dir, 'Swin/')
     if os.path.exists(temp_path_model) is False:
         os.mkdir(temp_path_model)
 
@@ -80,8 +82,8 @@ def train(i, original_imgs_path):
 
             if args.cuda:
                 img = img.cuda()
-            en = swin_model.encoder(img)
-            outputs = swin_model.decoder(en)
+            img, en = swin_model.encoder(img)
+            outputs = swin_model.decoder(img, en)
 
             x = Variable(img.data.clone(), requires_grad=False)
 
@@ -95,9 +97,8 @@ def train(i, original_imgs_path):
             # ssim_loss_value /= len(outputs)
             pixel_loss_value /= len(outputs)
 
-            total_loss = pixel_loss_value
             # total_loss = pixel_loss_value + args.ssim_weight[i] * ssim_loss_value
-            total_loss.backward()
+            pixel_loss_value.backward()
             optimizer.step()
 
             # all_ssim_loss += ssim_loss_value.item()
@@ -115,9 +116,9 @@ def train(i, original_imgs_path):
                 #                   (args.ssim_weight[i] * all_ssim_loss + all_pixel_loss) / args.log_interval
                 # )
                 tbar.set_description(mesg)
-                Loss_pixel.append(all_pixel_loss / args.log_interval)
+                # Loss_pixel.append(all_pixel_loss / args.log_interval)
                 # Loss_ssim.append(all_ssim_loss / args.log_interval)
-                Loss_all.append((all_pixel_loss) / args.log_interval)
+                # Loss_all.append((all_pixel_loss) / args.log_interval)
                 # Loss_all.append((args.ssim_weight[i] * all_ssim_loss + all_pixel_loss) / args.log_interval)
 
                 # all_ssim_loss = 0.
@@ -125,10 +126,9 @@ def train(i, original_imgs_path):
             if (batch+1)%(200*args.log_interval) == 0:
                 swin_model.eval()
                 swin_model.cpu()
-                save_model_filename = args.ssim_path[i] + '/' + "Epoch_" + str(e) + "_iters_" + str(count) + "_" + \
-                                      str(time.ctime()).replace(' ', '_').replace(':', '_') + "_" + args.ssim_path[
-                                          i] + ".model"
-                save_model_path = os.path.join(args.save_model_dir, save_model_filename)
+                save_model_filename = "Epoch_" + str(e) + "_iters_" + str(count) + "_" + \
+                                      str(time.ctime()).replace(' ', '_').replace(':', '_') + ".model"
+                save_model_path = os.path.join(temp_path_model, save_model_filename)
                 torch.save(swin_model.state_dict(), save_model_path)
 
                 swin_model.train()
@@ -137,13 +137,12 @@ def train(i, original_imgs_path):
 
     swin_model.eval()
     swin_model.cpu()
-    save_model_filename = args.ssim_path[i] + '/' "Final_epoch_" + str(args.epochs) + "_" + \
-                          str(time.ctime()).replace(' ', '_').replace(':', '_') + "_" + args.ssim_path[i] + ".model"
-    save_model_path = os.path.join(args.save_model_dir, save_model_filename)
+    save_model_filename = "Final_epoch_" + str(args.epochs) + "_" + \
+                          str(time.ctime()).replace(' ', '_').replace(':', '_') + ".model"
+    save_model_path = os.path.join(temp_path_model, save_model_filename)
     torch.save(swin_model.state_dict(), save_model_path)
 
     print("\nDone, trained model saved at", save_model_path)
 
 if __name__ == '__main__':
     main()
-

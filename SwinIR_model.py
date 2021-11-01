@@ -825,14 +825,14 @@ class SwinIR(nn.Module):
 
         self.mean = self.mean.type_as(x)
         x = (x-self.mean) * self.img_range
-        return x
-
-    def decoder(self, x):
-        H, W = x.shape[2], x.shape[3]
         x_first = self.conv_first(x)
         res = self.conv_after_body(self.forward_features(x_first)) + x_first
-        x = x + self.conv_last(res)
 
+        return x, res # res才是提取出来的特征
+
+    def decoder(self, x, res):
+        H, W = x.shape[2], x.shape[3]
+        x = x + self.conv_last(res)
         x = x / self.img_range + self.mean
         return x[:, :, :H * self.upscale, :W * self.upscale]
 
@@ -850,11 +850,10 @@ if __name__ == '__main__':
     # print(model)
     print(height, width)
 
-    x = model.encoder(x)
+    x, res = model.encoder(x)
+    print(res.shape)
+    x = model.decoder(x, res)
     print(x.shape)
-    x = model.decoder(x)
-    print(x.shape)
-
 
 
 
