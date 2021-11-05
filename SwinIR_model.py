@@ -37,7 +37,6 @@ def window_partition(x, window_size):
     Args:
         x: (B, H, W, C)
         window_size (int): window size
-
     Returns:
         windows: (num_windows*B, window_size, window_size, C)
     """
@@ -54,7 +53,6 @@ def window_reverse(windows, window_size, H, W):
         window_size (int): Window size
         H (int): Height of image
         W (int): Width of image
-
     Returns:
         x: (B, H, W, C)
     """
@@ -67,7 +65,6 @@ def window_reverse(windows, window_size, H, W):
 class WindowAttention(nn.Module):
     r""" Window based multi-head self attention (W-MSA) module with relative position bias.
     It supports both of shifted and non-shifted window.
-
     Args:
         dim (int): Number of input channels.
         window_size (tuple[int]): The height and width of the window.
@@ -165,7 +162,6 @@ class WindowAttention(nn.Module):
 
 class SwinTransformerBlock(nn.Module):
     r""" Swin Transformer Block.
-
     Args:
         dim (int): Number of input channels.
         input_resolution (tuple[int]): Input resulotion.
@@ -301,7 +297,6 @@ class SwinTransformerBlock(nn.Module):
 
 class PatchMerging(nn.Module):
     r""" Patch Merging Layer.
-
     Args:
         input_resolution (tuple[int]): Resolution of input feature.
         dim (int): Number of input channels.
@@ -350,7 +345,6 @@ class PatchMerging(nn.Module):
 
 class BasicLayer(nn.Module):
     """ A basic Swin Transformer layer for one stage.
-
     Args:
         dim (int): Number of input channels.
         input_resolution (tuple[int]): Input resolution.
@@ -420,7 +414,6 @@ class BasicLayer(nn.Module):
 
 class RSTB(nn.Module):
     """Residual Swin Transformer Block (RSTB).
-
     Args:
         dim (int): Number of input channels.
         input_resolution (tuple[int]): Input resolution.
@@ -496,7 +489,6 @@ class RSTB(nn.Module):
 
 class PatchEmbed(nn.Module):
     r""" Image to Patch Embedding
-
     Args:
         img_size (int): Image size.  Default: 224.
         patch_size (int): Patch token size. Default: 4.
@@ -539,7 +531,6 @@ class PatchEmbed(nn.Module):
 
 class PatchUnEmbed(nn.Module):
     r""" Image to Patch Unembedding
-
     Args:
         img_size (int): Image size.  Default: 224.
         patch_size (int): Patch token size. Default: 4.
@@ -573,7 +564,6 @@ class PatchUnEmbed(nn.Module):
 
 class Upsample(nn.Sequential):
     """Upsample module.
-
     Args:
         scale (int): Scale factor. Supported scales: 2^n and 3.
         num_feat (int): Channel number of intermediate features.
@@ -596,11 +586,9 @@ class Upsample(nn.Sequential):
 class UpsampleOneStep(nn.Sequential):
     """UpsampleOneStep module (the difference with Upsample is that it always only has 1conv + 1pixelshuffle)
        Used in lightweight SR to save parameters.
-
     Args:
         scale (int): Scale factor. Supported scales: 2^n and 3.
         num_feat (int): Channel number of intermediate features.
-
     """
 
     def __init__(self, scale, num_feat, num_out_ch, input_resolution=None):
@@ -620,7 +608,6 @@ class UpsampleOneStep(nn.Sequential):
 class SwinIR(nn.Module):
     r""" SwinIR
         A PyTorch impl of : `SwinIR: Image Restoration Using Swin Transformer`, based on Swin Transformer.
-
     Args:
         img_size (int | tuple(int)): Input image size. Default 64
         patch_size (int | tuple(int)): Patch size. Default: 1
@@ -645,7 +632,7 @@ class SwinIR(nn.Module):
         resi_connection: The convolutional block before residual connection. '1conv'/'3conv'
     """
 
-    def __init__(self, img_size=64, patch_size=1, in_chans=3,
+    def __init__(self, img_size=256, patch_size=1, in_chans=3,
                  embed_dim=96, depths=[6, 6, 6, 6], num_heads=[6, 6, 6, 6],
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
@@ -653,9 +640,11 @@ class SwinIR(nn.Module):
                  use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
                  **kwargs):
         super(SwinIR, self).__init__()
+
         num_in_ch = in_chans
         num_out_ch = in_chans
         num_feat = 64
+        self.img_size = img_size
         self.img_range = img_range
         if in_chans == 3:
             rgb_mean = (0.4488, 0.4371, 0.4040)
@@ -828,33 +817,26 @@ class SwinIR(nn.Module):
         x_first = self.conv_first(x)
         res = self.conv_after_body(self.forward_features(x_first)) + x_first
 
-        return x, res # res才是提取出来的特征
+        return res
 
-    def decoder(self, x, res):
-        H, W = x.shape[2], x.shape[3]
-        x = x + self.conv_last(res)
+    def decoder(self, x):
+        # H, W = x.shape[2], x.shape[3]
+        x = self.conv_last(x)
         x = x / self.img_range + self.mean
-        return x[:, :, :H * self.upscale, :W * self.upscale]
+        return x[:, :, :self.img_size * self.upscale, :self.img_size * self.upscale]
 
 if __name__ == '__main__':
-    upscale = 4
+    upscale = 1
     window_size = 8
     # height = (1024 // upscale // window_size + 1) * window_size
     # width = (720 // upscale // window_size + 1) * window_size
-    height = 256
-    width = 256
-    x = torch.randn((1, 3, height, width))
-    model = SwinIR(in_chans=x.shape[1], upscale=2, img_size=(height, width),
+    img_size = 256
+    x = torch.randn((1, 3, img_size, img_size))
+    model = SwinIR(in_chans=x.shape[1], upscale=upscale, img_size= img_size,
                    window_size=window_size, img_range=1., depths=[4,4,4,4],
                    embed_dim=60, num_heads=[6, 6, 6, 6], mlp_ratio=2, upsampler='')
-    # print(model)
-    print(height, width)
 
-    x, res = model.encoder(x)
+    res = model.encoder(x)
     print(res.shape)
-    x = model.decoder(x, res)
+    x = model.decoder(res)
     print(x.shape)
-
-
-
-

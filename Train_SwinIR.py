@@ -1,5 +1,3 @@
-import numpy as np
-
 from SwinIR_model import SwinIR
 from tqdm import trange
 from torch.optim import Adam
@@ -13,7 +11,8 @@ import time
 # import pytorch_msssim
 
 def main():
-    original_imgs_path = utils.list_images(args.dataset)
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    original_imgs_path, names = utils.list_images(args.dataset)
     train_num = 40000
     original_imgs_path = original_imgs_path[:train_num]
     random.shuffle(original_imgs_path)
@@ -31,20 +30,20 @@ def train(original_imgs_path):
     input_nc = in_c
     upscale = 1
     window_size = 8
-    height = 256
-    width = 256
-    depths = [3,3,3,3]
 
-    swin_model = SwinIR(in_chans=input_nc, upscale=upscale, img_size=(height, width),
+    img_size = 256
+    depths = [4,4,4,4]
+
+    swin_model = SwinIR(in_chans=input_nc, upscale=upscale, img_size=img_size,
                         window_size=window_size, img_range=255., depths=depths,
-                        embed_dim=60, num_heads=[6,6,6,6], mlp_ratio=2, upsampler='')
+                        embed_dim=60, num_heads=depths, mlp_ratio=2, upsampler='')
 
     if hasattr(torch.cuda, 'empty_cache'):
         torch.cuda.empty_cache()
 
-    if args.resume is not None:
-        print('Resuming, initializing using weight from {}.'.format(args.resume))
-        swin_model.load_state_dict(torch.load(args.resume))
+    if args.resume_Swin is not None:
+        print('Resuming, initializing using weight from {}.'.format(args.resume_Swin))
+        swin_model.load_state_dict(torch.load(args.resume_Swin))
     # print(swin_model)
     optimizer = Adam(swin_model.parameters(), args.lr)
     mse_loss = torch.nn.MSELoss()
@@ -82,8 +81,9 @@ def train(original_imgs_path):
 
             if args.cuda:
                 img = img.cuda()
-            img, en = swin_model.encoder(img)
-            outputs = swin_model.decoder(img, en)
+            en = swin_model.encoder(img)
+            outputs = swin_model.decoder(en)
+            # outputs = swin_model.forward(img)
 
             x = Variable(img.data.clone(), requires_grad=False)
 
@@ -97,8 +97,8 @@ def train(original_imgs_path):
             # ssim_loss_value /= len(outputs)
             pixel_loss_value /= len(outputs)
 
-            # total_loss = pixel_loss_value + args.ssim_weight[i] * ssim_loss_value
-            pixel_loss_value.backward()
+            total_loss = pixel_loss_value
+            total_loss.backward()
             optimizer.step()
 
             # all_ssim_loss += ssim_loss_value.item()
@@ -141,6 +141,7 @@ def train(original_imgs_path):
                           str(time.ctime()).replace(' ', '_').replace(':', '_') + ".model"
     save_model_path = os.path.join(temp_path_model, save_model_filename)
     torch.save(swin_model.state_dict(), save_model_path)
+    torch.save(swin_model.state_dict(), './models/final_models/Swin.model')
 
     print("\nDone, trained model saved at", save_model_path)
 
